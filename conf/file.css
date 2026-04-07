@@ -1,0 +1,8 @@
+.table thead th{
+                    border-bottom: 2px solid #f0f0f0;
+                    color: #6c757d;
+                    font-size: 0.85rem;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    font-weight: 600;
+             }
