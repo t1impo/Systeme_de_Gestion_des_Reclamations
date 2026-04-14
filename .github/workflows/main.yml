@@ -1,0 +1,54 @@
+name: DevOps Pipeline
+
+on:
+  push:
+    branches: [ "master" ]
+
+jobs:
+
+  # BUILD
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build step
+        run: echo "Build application"
+
+  # TEST
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Test step
+        run: echo "Test application"
+
+  # RELEASE
+  release:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Release step
+        run: echo "Prepare release"
+
+  # DEPLOY
+  deploy:
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - name: Deploy step
+        run: echo "Deploy application"
+
+  # OPERATE
+  operate:
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - name: Operate step
+        run: echo "Application running"
+
+  # MONITOR
+  monitor:
+    runs-on: ubuntu-latest
+    needs: operate
+    steps:
+      - name: Monitor step
+        run: echo "Monitoring and logs"
