@@ -199,7 +199,7 @@ jobs:
       # ----- Importer le schéma SQL -----
       - name: Importer la base de données
         run: |
-          if [ ! -f bd.sql ]; then
+          if [ ! -f conf/bd.sql ]; then
             echo "Fichier bd.sql introuvable — skip."
           else
             mysql \
