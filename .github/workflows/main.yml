@@ -199,7 +199,7 @@ jobs:
       # ----- Importer le schéma SQL -----
       - name: Importer la base de données
         run: |
-          if [ ! -f conf/bd.sql ]; then
+          if [ ! -f bd.sql ]; then
             echo "Fichier bd.sql introuvable — skip."
           else
             mysql \
@@ -208,8 +208,7 @@ jobs:
               -p${{ env.MYSQL_PASSWORD }} \
               ${{ env.MYSQL_DATABASE }} < bd.sql
             echo "Base importée avec succès."
-          fi
-
+          fi4
       # ----- Vérification tables -----
       - name: Vérifier les tables créées
         run: |
