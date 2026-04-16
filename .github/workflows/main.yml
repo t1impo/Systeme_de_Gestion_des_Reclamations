@@ -208,7 +208,7 @@ jobs:
               -p${{ env.MYSQL_PASSWORD }} \
               ${{ env.MYSQL_DATABASE }} < bd.sql
             echo "Base importée avec succès."
-          fi4
+          fi
       # ----- Vérification tables -----
       - name: Vérifier les tables créées
         run: |
