@@ -1,8 +1,8 @@
 <?php
-$host     = 'localhost';                
+$host     = 'mysql';                
 $dbname   = 'bd_final'; 
-$username = 'root';                     
-$password = 'tK5aE!aE(_FU4_dv';                         
+$username = 'appuser';                     
+$password = 'apppassword';                         
 
 try {
     $dsn = "mysql:host=$host;dbname=$dbname";
@@ -16,7 +16,7 @@ try {
     
     die('Erreur de connexion à la base de données : ' . $e->getMessage());
 }
-define('UPLOAD_DIR','C:\xampp\htdocs\PROJET_WEB_ver6\espace_reclament\uploads\reclamations');
+define('UPLOAD_DIR','/var/www/html/uploads/reclamations');
 
 // Taille max par fichier (ici 5 Mo) – utilisée seulement pour le contrôle, pas stockée en BD
 define('MAX_FILE_SIZE', 5 * 1024 * 1024);

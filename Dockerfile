@@ -7,6 +7,8 @@ RUN a2enmod rewrite
 # 3. Copier tous les fichiers de votre projet (PHP, CSS, HTML) dans le dossier par défaut d'Apache
 COPY . /var/www/html/
 
+RUN docker-php-ext-install pdo pdo_mysql
+
 # 4. Assurer que l'utilisateur Apache (www-data) a les bons droits sur les fichiers
 RUN chown -R www-data:www-data /var/www/html/ \
     && chmod -R 755 /var/www/html/
