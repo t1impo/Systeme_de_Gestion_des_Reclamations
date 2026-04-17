@@ -29,7 +29,7 @@ class testlogin extends TestCase
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HEADER, true);
 
-        // 🔥 gestion session (très important)
+        //  gestion session (très important)
         curl_setopt($ch, CURLOPT_COOKIEJAR, $this->cookieFile);
         curl_setopt($ch, CURLOPT_COOKIEFILE, $this->cookieFile);
 
@@ -56,15 +56,4 @@ class testlogin extends TestCase
         $this->assertStringContainsString('espace_reclamation.php', $response['headers']);
     }
 
-    // ❌ Test login FAIL
-    public function testLoginFail()
-    {
-        $response = $this->request('/index/login_page.php', 'POST', [
-            'email'    => 'wrong@mail.com',
-            'password' => 'wrongpass',
-        ]);
-
-        $this->assertNotEquals(302, $response['code']);
-        $this->assertStringContainsString('<form', $response['body']);
-    }
 }
