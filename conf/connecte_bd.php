@@ -1,11 +1,11 @@
 <?php
-$host     = 'localhost';                
+$host     = '127.0.0.1';                
 $dbname   = 'bd_final'; 
 $username = 'appuser';                     
 $password = 'apppassword';                         
 
 try {
-    $dsn = "mysql:host=$host;dbname=$dbname";
+    $dsn = "mysql:host=$host;dbname=$dbname;port=3306";
     $options = [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
