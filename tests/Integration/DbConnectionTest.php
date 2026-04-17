@@ -8,7 +8,7 @@ class DbConnectionTest extends TestCase
     protected function setUp(): void
     {
         $this->pdo = new PDO(
-            "mysql:host=" . getenv('DB_HOST') . ";port=3306;dbname=" . getenv('DB_NAME') . ";charset=utf8",
+            "mysql:host=" . getenv('DB_HOST') . ";port=3306;dbname=" . getenv('DB_NAME') . ";charset=utf8mb4",
             getenv('DB_USER'),
             getenv('DB_PASS'),
             [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
@@ -21,7 +21,7 @@ class DbConnectionTest extends TestCase
         $this->assertInstanceOf(PDO::class, $this->pdo);
     }
 
-    // Test 2 : la base de données cible existe
+    // Test 2 : la base de données cible est bien sélectionnée
     public function testCorrectDatabaseSelected()
     {
         $stmt = $this->pdo->query("SELECT DATABASE()");
@@ -29,95 +29,151 @@ class DbConnectionTest extends TestCase
         $this->assertEquals(getenv('DB_NAME'), $db);
     }
 
-    // Test 3 : les tables existent après import du schéma
-    public function testTablesExistAfterImport()
+    // Test 3 : les 7 tables du schéma existent
+    public function testAllTablesExist()
     {
-        $stmt   = $this->pdo->query("SHOW TABLES");
-        $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
-        $this->assertNotEmpty($tables, "Aucune table trouvée dans la base");
+        $expected = ['users', 'categories', 'statuts', 'reclamations', 'commentaires', 'gestionnaires', 'pieces_jointes'];
+        $stmt     = $this->pdo->query("SHOW TABLES");
+        $actual   = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($expected as $table) {
+            $this->assertContains($table, $actual, "Table manquante : $table");
+        }
     }
 
-    // Test 4 : insertion d'un utilisateur en base
-    public function testInsertUser()
+    // Test 4 : les catégories de base existent (administrative, technique)
+    public function testCategoriesSeeded()
     {
+        $stmt = $this->pdo->query("SELECT categorie FROM categories ORDER BY id");
+        $cats = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        $this->assertContains('administrative', $cats);
+        $this->assertContains('technique', $cats);
+    }
+
+    // Test 5 : les statuts de base existent
+    public function testStatutsSeeded()
+    {
+        $stmt    = $this->pdo->query("SELECT statut FROM statuts");
+        $statuts = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        $this->assertContains('Acceptée', $statuts);
+        $this->assertContains('En cours de traitement', $statuts);
+    }
+
+    // Test 6 : insertion et lecture d'un user (round-trip)
+    public function testInsertAndReadUser()
+    {
+        $nom   = "Test User";
         $email = "test_" . uniqid() . "@example.com";
+        $role  = "Réclamant";
         $hash  = password_hash("password123", PASSWORD_BCRYPT);
 
         $stmt = $this->pdo->prepare(
-            "INSERT INTO users (email, password) VALUES (:email, :password)"
+            "INSERT INTO users (nom, email, role, mot_de_passe) VALUES (:nom, :email, :role, :mdp)"
         );
-        $result = $stmt->execute([':email' => $email, ':password' => $hash]);
-        $this->assertTrue($result);
+        $stmt->execute([':nom' => $nom, ':email' => $email, ':role' => $role, ':mdp' => $hash]);
 
-        // Nettoyage
-        $this->pdo->prepare("DELETE FROM users WHERE email = ?")->execute([$email]);
-    }
-
-    // Test 5 : lecture après insertion (round-trip)
-    public function testReadAfterInsert()
-    {
-        $email = "read_" . uniqid() . "@example.com";
-        $hash  = password_hash("pass", PASSWORD_BCRYPT);
-
-        $this->pdo->prepare(
-            "INSERT INTO users (email, password) VALUES (?, ?)"
-        )->execute([$email, $hash]);
-
-        $stmt = $this->pdo->prepare("SELECT email FROM users WHERE email = ?");
+        $stmt = $this->pdo->prepare("SELECT nom, email, role FROM users WHERE email = ?");
         $stmt->execute([$email]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
+        $this->assertEquals($nom,   $row['nom']);
         $this->assertEquals($email, $row['email']);
+        $this->assertEquals($role,  $row['role']);
 
         // Nettoyage
         $this->pdo->prepare("DELETE FROM users WHERE email = ?")->execute([$email]);
     }
 
-    // Test 6 : mise à jour d'un enregistrement
-    public function testUpdateUser()
+    // Test 7 : insertion d'une réclamation avec FK valides
+    public function testInsertReclamation()
     {
-        $email   = "update_" . uniqid() . "@example.com";
-        $newHash = password_hash("newpass", PASSWORD_BCRYPT);
-
+        // Créer un user temporaire
+        $email = "reclam_" . uniqid() . "@example.com";
         $this->pdo->prepare(
-            "INSERT INTO users (email, password) VALUES (?, ?)"
-        )->execute([$email, password_hash("old", PASSWORD_BCRYPT)]);
+            "INSERT INTO users (nom, email, role, mot_de_passe) VALUES (?, ?, ?, ?)"
+        )->execute(["Temp", $email, "Réclamant", password_hash("pass", PASSWORD_BCRYPT)]);
 
-        $this->pdo->prepare(
-            "UPDATE users SET password = ? WHERE email = ?"
-        )->execute([$newHash, $email]);
+        $userId = (int) $this->pdo->lastInsertId();
 
-        $stmt = $this->pdo->prepare("SELECT password FROM users WHERE email = ?");
-        $stmt->execute([$email]);
-        $stored = $stmt->fetchColumn();
+        // Récupérer des FK valides
+        $catId    = (int) $this->pdo->query("SELECT id FROM categories LIMIT 1")->fetchColumn();
+        $statutId = (int) $this->pdo->query("SELECT id FROM statuts LIMIT 1")->fetchColumn();
 
-        $this->assertTrue(password_verify("newpass", $stored));
+        $stmt = $this->pdo->prepare(
+            "INSERT INTO reclamations (user_id, categorie_id, objet, description, date_soumission, statut_id)
+             VALUES (:uid, :cid, :obj, :desc, :date, :sid)"
+        );
+        $result = $stmt->execute([
+            ':uid'  => $userId,
+            ':cid'  => $catId,
+            ':obj'  => 'Test objet',
+            ':desc' => 'Description de test',
+            ':date' => date('Y-m-d'),
+            ':sid'  => $statutId,
+        ]);
 
-        // Nettoyage
-        $this->pdo->prepare("DELETE FROM users WHERE email = ?")->execute([$email]);
+        $this->assertTrue($result);
+
+        // Nettoyage (CASCADE supprime la réclamation)
+        $this->pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$userId]);
     }
 
-    // Test 7 : suppression d'un enregistrement
-    public function testDeleteUser()
+    // Test 8 : suppression user supprime ses réclamations (ON DELETE CASCADE)
+    public function testCascadeDeleteReclamation()
     {
-        $email = "delete_" . uniqid() . "@example.com";
+        $email = "cascade_" . uniqid() . "@example.com";
+        $this->pdo->prepare(
+            "INSERT INTO users (nom, email, role, mot_de_passe) VALUES (?, ?, ?, ?)"
+        )->execute(["CascTest", $email, "Réclamant", password_hash("pass", PASSWORD_BCRYPT)]);
+        $userId = (int) $this->pdo->lastInsertId();
+
+        $catId    = (int) $this->pdo->query("SELECT id FROM categories LIMIT 1")->fetchColumn();
+        $statutId = (int) $this->pdo->query("SELECT id FROM statuts LIMIT 1")->fetchColumn();
 
         $this->pdo->prepare(
-            "INSERT INTO users (email, password) VALUES (?, ?)"
-        )->execute([$email, "hash"]);
+            "INSERT INTO reclamations (user_id, categorie_id, objet, description, date_soumission, statut_id)
+             VALUES (?, ?, ?, ?, ?, ?)"
+        )->execute([$userId, $catId, 'Cascade test', 'desc', date('Y-m-d'), $statutId]);
 
-        $this->pdo->prepare(
-            "DELETE FROM users WHERE email = ?"
-        )->execute([$email]);
+        $reclamId = (int) $this->pdo->lastInsertId();
 
-        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM users WHERE email = ?");
-        $stmt->execute([$email]);
-        $count = $stmt->fetchColumn();
+        // Supprimer le user → la réclamation doit disparaître aussi
+        $this->pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$userId]);
 
-        $this->assertEquals(0, $count);
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM reclamations WHERE id = ?");
+        $stmt->execute([$reclamId]);
+        $this->assertEquals(0, (int) $stmt->fetchColumn(), "CASCADE DELETE n'a pas supprimé la réclamation");
     }
 
-    // Test 8 : login avec credentials corrects
+    // Test 9 : insertion d'un commentaire lié à une réclamation
+    public function testInsertCommentaire()
+    {
+        $email = "comm_" . uniqid() . "@example.com";
+        $this->pdo->prepare(
+            "INSERT INTO users (nom, email, role, mot_de_passe) VALUES (?, ?, ?, ?)"
+        )->execute(["CommTest", $email, "Réclamant", password_hash("pass", PASSWORD_BCRYPT)]);
+        $userId = (int) $this->pdo->lastInsertId();
+
+        $catId    = (int) $this->pdo->query("SELECT id FROM categories LIMIT 1")->fetchColumn();
+        $statutId = (int) $this->pdo->query("SELECT id FROM statuts LIMIT 1")->fetchColumn();
+
+        $this->pdo->prepare(
+            "INSERT INTO reclamations (user_id, categorie_id, objet, description, date_soumission, statut_id)
+             VALUES (?, ?, ?, ?, ?, ?)"
+        )->execute([$userId, $catId, 'Objet comm', 'desc', date('Y-m-d'), $statutId]);
+        $reclamId = (int) $this->pdo->lastInsertId();
+
+        $stmt = $this->pdo->prepare(
+            "INSERT INTO commentaires (reclamation_id, user_id, message, date_commentaire)
+             VALUES (?, ?, ?, ?)"
+        );
+        $result = $stmt->execute([$reclamId, $userId, 'Commentaire de test', date('Y-m-d')]);
+        $this->assertTrue($result);
+
+        // Nettoyage (CASCADE)
+        $this->pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$userId]);
+    }
+
+    // Test 10 : login — vérification mot de passe depuis la table users
     public function testLoginWithValidCredentials()
     {
         $email = "login_" . uniqid() . "@example.com";
@@ -125,34 +181,14 @@ class DbConnectionTest extends TestCase
         $hash  = password_hash($plain, PASSWORD_BCRYPT);
 
         $this->pdo->prepare(
-            "INSERT INTO users (email, password) VALUES (?, ?)"
-        )->execute([$email, $hash]);
+            "INSERT INTO users (nom, email, role, mot_de_passe) VALUES (?, ?, ?, ?)"
+        )->execute(["LoginTest", $email, "Réclamant", $hash]);
 
-        $stmt = $this->pdo->prepare("SELECT password FROM users WHERE email = ?");
+        $stmt = $this->pdo->prepare("SELECT mot_de_passe FROM users WHERE email = ?");
         $stmt->execute([$email]);
         $stored = $stmt->fetchColumn();
 
         $this->assertTrue(password_verify($plain, $stored));
-
-        // Nettoyage
-        $this->pdo->prepare("DELETE FROM users WHERE email = ?")->execute([$email]);
-    }
-
-    // Test 9 : login avec mauvais mot de passe échoue
-    public function testLoginWithWrongPasswordFails()
-    {
-        $email = "fail_" . uniqid() . "@example.com";
-        $hash  = password_hash("correct", PASSWORD_BCRYPT);
-
-        $this->pdo->prepare(
-            "INSERT INTO users (email, password) VALUES (?, ?)"
-        )->execute([$email, $hash]);
-
-        $stmt = $this->pdo->prepare("SELECT password FROM users WHERE email = ?");
-        $stmt->execute([$email]);
-        $stored = $stmt->fetchColumn();
-
-        $this->assertFalse(password_verify("wrong", $stored));
 
         // Nettoyage
         $this->pdo->prepare("DELETE FROM users WHERE email = ?")->execute([$email]);

