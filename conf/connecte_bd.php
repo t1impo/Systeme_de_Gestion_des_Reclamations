@@ -1,5 +1,5 @@
 <?php
-$host     = 'mysql';                
+$host     = '127.0.0.1';                
 $dbname   = 'bd_final'; 
 $username = 'appuser';                     
 $password = 'apppassword';                         
