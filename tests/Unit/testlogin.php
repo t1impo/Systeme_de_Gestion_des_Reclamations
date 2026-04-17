@@ -53,7 +53,7 @@ class testlogin extends TestCase
         ]);
 
         $this->assertEquals(302, $response['code']);
-        $this->assertStringContainsString('dashboard', $response['headers']);
+        $this->assertStringContainsString('espace_reclamation.php', $response['headers']);
     }
 
     // ❌ Test login FAIL
