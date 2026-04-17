@@ -1,7 +1,7 @@
 <?php
 use PHPUnit\Framework\TestCase;
 
-class LoginHttpTest extends TestCase
+class testlogin extends TestCase
 {
     private $cookieFile;
 
