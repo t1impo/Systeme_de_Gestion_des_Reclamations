@@ -67,7 +67,7 @@ class HttpTest extends TestCase
     // Test 3 : Bootstrap est chargé dans la page
     public function testBootstrapIsLoaded()
     {
-        $res = $this->request('/index/login_page.php');
+        $res = $this->request('/conf/head.php');
         $this->assertStringContainsStringIgnoringCase('bootstrap', $res['body']);
     }
 
@@ -93,7 +93,7 @@ class HttpTest extends TestCase
     // Test 6 : accès à une page protégée sans session redirige vers login
     public function testProtectedPageRedirectsWithoutSession()
     {
-        $res = $this->request('/index/dashboard.php');
+        $res = $this->request('/espace_reclament/espace_reclamation.php');
         // Doit rediriger (302) vers la page de login
         $this->assertContains($res['code'], [301, 302, 403]);
     }
