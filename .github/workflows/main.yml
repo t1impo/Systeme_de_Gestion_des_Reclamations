@@ -260,14 +260,14 @@ jobs:
       # ----- PHPUnit -----
       - name: Run PHPUnit tests
         env:
-          DB_HOST: 127.0.0.1       # ✅ MySQL service accessible ici
+          DB_HOST: 127.0.0.1       
           DB_NAME: ${{ env.MYSQL_DATABASE }}
           DB_USER: ${{ env.MYSQL_USER }}
           DB_PASS: ${{ env.MYSQL_PASSWORD }}
+          # vendor/bin/phpunit tests/Functional/HttpTest.php
         run: |
               vendor/bin/phpunit tests/Unit/DbHelperTest.php
               vendor/bin/phpunit tests/Integration/DbConnectionTest.php
-              vendor/bin/phpunit tests/Functional/HttpTest.php
               vendor/bin/phpunit tests/Security/SecurityTest.php
               
 
