@@ -264,8 +264,9 @@ jobs:
           DB_NAME: ${{ env.MYSQL_DATABASE }}
           DB_USER: ${{ env.MYSQL_USER }}
           DB_PASS: ${{ env.MYSQL_PASSWORD }}
-        run: vendor/bin/phpunit tests/Unit/DbHelperTest.php
-             vendor/bin/phpunit tests/Integration/DbConnectionTest.php
+        run: |
+              vendor/bin/phpunit tests/Unit/DbHelperTest.php
+              vendor/bin/phpunit tests/Integration/DbConnectionTest.php
 
       # ----- Logs en cas d'échec -----
       - name: Afficher les logs si échec
