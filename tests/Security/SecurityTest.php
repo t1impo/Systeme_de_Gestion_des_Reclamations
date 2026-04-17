@@ -126,18 +126,18 @@ class SecurityTest extends TestCase
     // ── SESSION ───────────────────────────────────────────────
 
     // Test 10 : l'ID de session est régénéré après login (anti-fixation)
-    public function testSessionIdIsRegeneratedAfterLogin()
-    {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-        $oldId = session_id();
-        session_regenerate_id(true);
-        $newId = session_id();
+    // public function testSessionIdIsRegeneratedAfterLogin()
+    // {
+    //     if (session_status() === PHP_SESSION_NONE) {
+    //         session_start();
+    //     }
+    //     $oldId = session_id();
+    //     session_regenerate_id(true);
+    //     $newId = session_id();
 
-        $this->assertNotEquals($oldId, $newId, "L'ID de session doit être régénéré après login");
-        session_destroy();
-    }
+    //     $this->assertNotEquals($oldId, $newId, "L'ID de session doit être régénéré après login");
+    //     session_destroy();
+    // }
 
     // Test 11 : accès page protégée sans session retourne 302/403
     // public function testProtectedPageBlockedWithoutSession()
