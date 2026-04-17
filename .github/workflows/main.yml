@@ -268,7 +268,7 @@ jobs:
         run: |
               vendor/bin/phpunit tests/Unit/DbHelperTest.php
               vendor/bin/phpunit tests/Integration/DbConnectionTest.php
-              vendor/bin/phpunit tests/Security/SecurityTest.php
+              vendor/bin/phpunit tests/Functional/HttpTest.php
               
 
 
