@@ -44,13 +44,13 @@ class DbConnectionTest extends TestCase
         $hash  = password_hash("password123", PASSWORD_BCRYPT);
 
         $stmt = $this->pdo->prepare(
-            "INSERT INTO utilisateurs (email, password) VALUES (:email, :password)"
+            "INSERT INTO users (email, password) VALUES (:email, :password)"
         );
         $result = $stmt->execute([':email' => $email, ':password' => $hash]);
         $this->assertTrue($result);
 
         // Nettoyage
-        $this->pdo->prepare("DELETE FROM utilisateurs WHERE email = ?")->execute([$email]);
+        $this->pdo->prepare("DELETE FROM users WHERE email = ?")->execute([$email]);
     }
 
     // Test 5 : lecture après insertion (round-trip)
@@ -60,17 +60,17 @@ class DbConnectionTest extends TestCase
         $hash  = password_hash("pass", PASSWORD_BCRYPT);
 
         $this->pdo->prepare(
-            "INSERT INTO utilisateurs (email, password) VALUES (?, ?)"
+            "INSERT INTO users (email, password) VALUES (?, ?)"
         )->execute([$email, $hash]);
 
-        $stmt = $this->pdo->prepare("SELECT email FROM utilisateurs WHERE email = ?");
+        $stmt = $this->pdo->prepare("SELECT email FROM users WHERE email = ?");
         $stmt->execute([$email]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
         $this->assertEquals($email, $row['email']);
 
         // Nettoyage
-        $this->pdo->prepare("DELETE FROM utilisateurs WHERE email = ?")->execute([$email]);
+        $this->pdo->prepare("DELETE FROM users WHERE email = ?")->execute([$email]);
     }
 
     // Test 6 : mise à jour d'un enregistrement
@@ -80,21 +80,21 @@ class DbConnectionTest extends TestCase
         $newHash = password_hash("newpass", PASSWORD_BCRYPT);
 
         $this->pdo->prepare(
-            "INSERT INTO utilisateurs (email, password) VALUES (?, ?)"
+            "INSERT INTO users (email, password) VALUES (?, ?)"
         )->execute([$email, password_hash("old", PASSWORD_BCRYPT)]);
 
         $this->pdo->prepare(
-            "UPDATE utilisateurs SET password = ? WHERE email = ?"
+            "UPDATE users SET password = ? WHERE email = ?"
         )->execute([$newHash, $email]);
 
-        $stmt = $this->pdo->prepare("SELECT password FROM utilisateurs WHERE email = ?");
+        $stmt = $this->pdo->prepare("SELECT password FROM users WHERE email = ?");
         $stmt->execute([$email]);
         $stored = $stmt->fetchColumn();
 
         $this->assertTrue(password_verify("newpass", $stored));
 
         // Nettoyage
-        $this->pdo->prepare("DELETE FROM utilisateurs WHERE email = ?")->execute([$email]);
+        $this->pdo->prepare("DELETE FROM users WHERE email = ?")->execute([$email]);
     }
 
     // Test 7 : suppression d'un enregistrement
@@ -103,14 +103,14 @@ class DbConnectionTest extends TestCase
         $email = "delete_" . uniqid() . "@example.com";
 
         $this->pdo->prepare(
-            "INSERT INTO utilisateurs (email, password) VALUES (?, ?)"
+            "INSERT INTO users (email, password) VALUES (?, ?)"
         )->execute([$email, "hash"]);
 
         $this->pdo->prepare(
-            "DELETE FROM utilisateurs WHERE email = ?"
+            "DELETE FROM users WHERE email = ?"
         )->execute([$email]);
 
-        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM utilisateurs WHERE email = ?");
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM users WHERE email = ?");
         $stmt->execute([$email]);
         $count = $stmt->fetchColumn();
 
@@ -125,17 +125,17 @@ class DbConnectionTest extends TestCase
         $hash  = password_hash($plain, PASSWORD_BCRYPT);
 
         $this->pdo->prepare(
-            "INSERT INTO utilisateurs (email, password) VALUES (?, ?)"
+            "INSERT INTO users (email, password) VALUES (?, ?)"
         )->execute([$email, $hash]);
 
-        $stmt = $this->pdo->prepare("SELECT password FROM utilisateurs WHERE email = ?");
+        $stmt = $this->pdo->prepare("SELECT password FROM users WHERE email = ?");
         $stmt->execute([$email]);
         $stored = $stmt->fetchColumn();
 
         $this->assertTrue(password_verify($plain, $stored));
 
         // Nettoyage
-        $this->pdo->prepare("DELETE FROM utilisateurs WHERE email = ?")->execute([$email]);
+        $this->pdo->prepare("DELETE FROM users WHERE email = ?")->execute([$email]);
     }
 
     // Test 9 : login avec mauvais mot de passe échoue
@@ -145,16 +145,16 @@ class DbConnectionTest extends TestCase
         $hash  = password_hash("correct", PASSWORD_BCRYPT);
 
         $this->pdo->prepare(
-            "INSERT INTO utilisateurs (email, password) VALUES (?, ?)"
+            "INSERT INTO users (email, password) VALUES (?, ?)"
         )->execute([$email, $hash]);
 
-        $stmt = $this->pdo->prepare("SELECT password FROM utilisateurs WHERE email = ?");
+        $stmt = $this->pdo->prepare("SELECT password FROM users WHERE email = ?");
         $stmt->execute([$email]);
         $stored = $stmt->fetchColumn();
 
         $this->assertFalse(password_verify("wrong", $stored));
 
         // Nettoyage
-        $this->pdo->prepare("DELETE FROM utilisateurs WHERE email = ?")->execute([$email]);
+        $this->pdo->prepare("DELETE FROM users WHERE email = ?")->execute([$email]);
     }
 }
