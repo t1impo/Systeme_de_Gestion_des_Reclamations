@@ -3,7 +3,7 @@ use PHPUnit\Framework\TestCase;
 
 class TestLogin extends TestCase
 {
-    private $baseUrl = "http://localhost/index/login_page.php";
+    private $baseUrl = "http://localhost:8080/index/login_page.php";
 
     private function request($url, $method = 'GET', $data = [])
     {
