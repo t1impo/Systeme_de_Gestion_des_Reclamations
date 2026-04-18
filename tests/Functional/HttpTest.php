@@ -7,15 +7,13 @@ class HttpTest extends TestCase
 
     protected function setUp(): void
     {
-        // L'app tourne sur le conteneur Docker exposé au port 8080
         $this->baseUrl = getenv('APP_URL') ?: 'http://localhost:8080';
     }
 
-    // Helper : faire une requête HTTP avec cURL
     private function request(
         string $path,
-        string $method = 'GET',
-        array  $data   = [],
+        string $method  = 'GET',
+        array  $data    = [],
         array  $cookies = []
     ): array {
         $ch = curl_init($this->baseUrl . $path);
@@ -64,10 +62,11 @@ class HttpTest extends TestCase
         $this->assertStringContainsString('<form', $res['body']);
     }
 
-    // Test 3 : Bootstrap est chargé dans la page
+    // Test 3 : Bootstrap est chargé — via login_page.php qui inclut head.php
     public function testBootstrapIsLoaded()
     {
-        $res = $this->request('/conf/head.php');
+        // ✅ On passe par login_page.php qui fait include('../conf/head.php')
+        $res = $this->request('/index/login_page.php');
         $this->assertStringContainsStringIgnoringCase('bootstrap', $res['body']);
     }
 
@@ -75,6 +74,8 @@ class HttpTest extends TestCase
     public function testNonExistentPageReturns404()
     {
         $res = $this->request('/index/cette_page_nexiste_pas.php');
+        // ✅ Apache peut retourner 404 pour un fichier .php inexistant
+        // (différent d'un dossier sans index qui retourne 403)
         $this->assertEquals(404, $res['code']);
     }
 
@@ -82,11 +83,10 @@ class HttpTest extends TestCase
     public function testLoginWithInvalidCredentialsFails()
     {
         $res = $this->request('/index/login_page.php', 'POST', [
-            'email'    => 'nobody@nowhere.com',
-            'password' => 'wrongpass',
+            'email'        => 'nobody@nowhere.com',
+            'mot_de_passe' => 'wrongpass',
         ]);
-        // Doit rester sur la page login (200) ou erreur, jamais rediriger vers dashboard
-        $this->assertNotEquals(302, $res['code'], "Ne doit pas rediriger vers dashboard avec de mauvais credentials");
+        $this->assertNotEquals(302, $res['code']);
         $this->assertStringNotContainsStringIgnoringCase('dashboard', $res['headers']);
     }
 
@@ -94,8 +94,12 @@ class HttpTest extends TestCase
     public function testProtectedPageRedirectsWithoutSession()
     {
         $res = $this->request('/espace_reclament/espace_reclamation.php');
-        // Doit rediriger (302) vers la page de login
-        $this->assertContains($res['code'], [301, 302, 403]);
+        // ✅ assertContainsEquals remplace assertContains pour PHPUnit 9+
+        $this->assertContainsEquals(
+            $res['code'],
+            [301, 302, 403],
+            "La page protégée doit rediriger ou interdire l'accès sans session"
+        );
     }
 
     // Test 7 : Content-Type est text/html
@@ -104,11 +108,4 @@ class HttpTest extends TestCase
         $res = $this->request('/index/login_page.php');
         $this->assertStringContainsStringIgnoringCase('text/html', $res['headers']);
     }
-
-    // Test 8 : la page d'accueil répond
-    // public function testHomepageResponds()
-    // {
-    //     $res = $this->request('/');
-    //     $this->assertContains($res['code'], [200, 301, 302]);
-    // }
 }
