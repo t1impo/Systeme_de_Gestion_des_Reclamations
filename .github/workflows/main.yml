@@ -239,6 +239,7 @@ jobs:
       # ----- Test HTTP -----
       - name: Attendre que l'application soit disponible
         run: |
+          sleep 5
           for i in $(seq 1 20); do
             STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
               http://localhost:8080/index/login_page.php)
@@ -283,7 +284,7 @@ jobs:
               vendor/bin/phpunit tests/Unit/DbHelperTest.php
               vendor/bin/phpunit tests/Unit/testlogin.php
               vendor/bin/phpunit tests/Integration/DbConnectionTest.php
-      # vendor/bin/phpunit tests/Functional/HttpTest.php
+              vendor/bin/phpunit tests/Functional/HttpTest.php
             
 
       # ----- Logs en cas d'échec -----
