@@ -256,6 +256,10 @@ jobs:
             docker logs app
             exit 1
           fi
+      
+      - name: Debug file structure
+        run: |
+             docker exec app find /var/www/html -type f | head -50
 
       # ----- PHPUnit -----
       - name: Run PHPUnit tests
