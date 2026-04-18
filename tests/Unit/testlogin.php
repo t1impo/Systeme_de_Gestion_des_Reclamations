@@ -3,7 +3,7 @@ use PHPUnit\Framework\TestCase;
 
 class TestLogin extends TestCase
 {
-    private $baseUrl = "http://localhost:8080/index/login_page.php";
+    private $baseUrl = "http://localhost:8080";
 
     private function request($url, $method = 'GET', $data = [])
     {
@@ -14,10 +14,10 @@ class TestLogin extends TestCase
             curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
         }
 
-        // 🔥 URL FIXE avec index.php comme point d'entrée
         curl_setopt($ch, CURLOPT_URL, $this->baseUrl . $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HEADER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false); // ← NE PAS suivre les redirections
 
         $response = curl_exec($ch);
 
