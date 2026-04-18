@@ -226,14 +226,15 @@ jobs:
       - name: Démarrer le conteneur applicatif
         run: |
           docker run -d \
-            --name app \
-            --network app-net \
-            -p 8080:80 \
-            -e DB_HOST=172.17.0.1 \
-            -e DB_NAME=${{ env.MYSQL_DATABASE }} \
-            -e DB_USER=${{ env.MYSQL_USER }} \
-            -e DB_PASS=${{ env.MYSQL_PASSWORD }} \
-            ${{ env.APP_IMAGE }}
+          --name app \
+          --network app-net \
+          --add-host=host.docker.internal:host-gateway \
+          -p 8080:80 \
+          -e DB_HOST=host.docker.internal \
+          -e DB_NAME=${{ env.MYSQL_DATABASE }} \
+          -e DB_USER=${{ env.MYSQL_USER }} \
+          -e DB_PASS=${{ env.MYSQL_PASSWORD }} \
+          ${{ env.APP_IMAGE }}
 
       # ----- Test HTTP -----
       - name: Attendre que l'application soit disponible
