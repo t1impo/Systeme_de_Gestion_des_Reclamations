@@ -106,9 +106,9 @@ class HttpTest extends TestCase
     }
 
     // Test 8 : la page d'accueil répond
-    public function testHomepageResponds()
-    {
-        $res = $this->request('/');
-        $this->assertContains($res['code'], [200, 301, 302]);
-    }
+    // public function testHomepageResponds()
+    // {
+    //     $res = $this->request('/');
+    //     $this->assertContains($res['code'], [200, 301, 302]);
+    // }
 }

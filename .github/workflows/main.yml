@@ -283,7 +283,7 @@ jobs:
               vendor/bin/phpunit tests/Unit/DbHelperTest.php
               vendor/bin/phpunit tests/Unit/testlogin.php
               vendor/bin/phpunit tests/Integration/DbConnectionTest.php
-      # vendor/bin/phpunit tests/Functional/HttpTest.php
+              vendor/bin/phpunit tests/Functional/HttpTest.php
             
 
       # ----- Logs en cas d'échec -----
