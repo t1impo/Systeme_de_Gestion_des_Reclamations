@@ -31,7 +31,7 @@ class TestLogin extends TestCase
     {
         $response = $this->request('/index/login_page.php', 'POST', [
             'email'    => 'reclamant@email.com',
-            'password' => 'reclamant',
+            'mot_de_passe' => 'reclamant',
         ]);
 
         $this->assertEquals(302, $response['code']);
