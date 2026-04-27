@@ -65,7 +65,7 @@ class HttpTest extends TestCase
     // Test 3 : Bootstrap est chargé — via login_page.php qui inclut head.php
     public function testBootstrapIsLoaded()
     {
-        // ✅ On passe par login_page.php qui fait include('../conf/head.php')
+        //  On passe par login_page.php qui fait include('../conf/head.php')
         $res = $this->request('/index/login_page.php');
         $this->assertStringContainsStringIgnoringCase('bootstrap', $res['body']);
     }
@@ -74,7 +74,7 @@ class HttpTest extends TestCase
     public function testNonExistentPageReturns404()
     {
         $res = $this->request('/index/cette_page_nexiste_pas.php');
-        // ✅ Apache peut retourner 404 pour un fichier .php inexistant
+        //  Apache peut retourner 404 pour un fichier .php inexistant
         // (différent d'un dossier sans index qui retourne 403)
         $this->assertEquals(404, $res['code']);
     }
@@ -94,7 +94,7 @@ class HttpTest extends TestCase
     public function testProtectedPageRedirectsWithoutSession()
     {
         $res = $this->request('/espace_reclament/espace_reclamation.php');
-        // ✅ assertContainsEquals remplace assertContains pour PHPUnit 9+
+        //  assertContainsEquals remplace assertContains pour PHPUnit 9+
         $this->assertContainsEquals(
             $res['code'],
             [301, 302, 403],
