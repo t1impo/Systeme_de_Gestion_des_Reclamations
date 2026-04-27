@@ -56,7 +56,7 @@ jobs:
           echo "Fichiers avec Bootstrap : $FILES"
 
 # ================================================================
-# JOB 2 — BUILD : Lint + Image Docker
+# JOB 2 — BUILD : Lint + Image Docker + GitOps
 # ================================================================
   build:
     name: "Build"
@@ -122,37 +122,36 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build et Push image Docker
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ env.APP_IMAGE }}
-            kokafanta24/app-web:${{ github.sha }}
-
-      # -------------------------------------------------------
-      # NOUVEAU — Mise à jour du manifest ArgoCD
-      # -------------------------------------------------------
-      - name: Update Kubernetes Manifest
-        # Ne tourne que sur un vrai push (pas sur une PR)
-        if: github.event_name == 'push'
         run: |
-          # 1. Identité Git pour le bot
-          git config --global user.email "ci-bot@github.com"
-          git config --global user.name "CI Bot"
+          # Tag court = 7 premiers caractères du SHA du commit
+          TAG=${GITHUB_SHA::7}
+          docker build -t kokafanta24/app-web:${TAG} -t kokafanta24/app-web:latest .
+          docker push kokafanta24/app-web:${TAG}
+          docker push kokafanta24/app-web:latest
+          # Sauvegarder le tag pour l'étape suivante
+          echo "NEW_TAG=${TAG}" >> $GITHUB_ENV
 
-          # 2. Cloner le dépôt de déploiement (le tien)
-          git clone https://${{ secrets.MY_DEPLOY_TOKEN }}@github.com/kokafanta24/mon-projet-deployment.git k8s-projet
+      # --- GitOps : mise à jour du dépôt de déploiement ---
+      - name: Mettre à jour le dépôt GitOps
+        if: github.event_name == 'push'
+        env:
+          GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}
+        run: |
+          # 1. Configurer l'identité Git du bot
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
 
-          # 3. Remplacer la valeur de l'image par le SHA du commit
-          cd deploy-repo
-          sed -i "s|image: kokafanta24/app-web:.*|image: kokafanta24/app-web:${{ github.sha }}|g" \
-            k8s-projet/web-deployment.yaml
+          # 2. Cloner le dépôt de déploiement
+          git clone https://x-access-token:${GITOPS_TOKEN}@github.com/koka55fanta/mon-projet-deployment.git
+          cd mon-projet-deployment/k8s-projet
 
-          # 4. Commit + Push uniquement si quelque chose a changé
+          # 3. Remplacer l'ancien tag par le nouveau dans le manifest
+          sed -i "s|kokafanta24/app-web:.*|kokafanta24/app-web:${NEW_TAG}|g" web-deployment.yaml
+
+          # 4. Committer et pousser seulement si quelque chose a changé
           git diff --quiet && echo "Rien à committer." && exit 0
-          git add k8s-projet/web-deployment.yaml
-          git commit -m "chore: update image to ${{ github.sha }} [skip ci]"
+          git add web-deployment.yaml
+          git commit -m "chore: déploiement auto — image mise à jour vers ${NEW_TAG} [skip ci]"
           git push
 
 # ================================================================
