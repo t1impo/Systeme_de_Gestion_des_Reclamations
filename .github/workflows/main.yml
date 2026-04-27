@@ -142,7 +142,7 @@ jobs:
           git config --global user.name "CI Bot"
 
           # 2. Cloner le dépôt de déploiement (le tien)
-          git clone https://${{ secrets.MY_DEPLOY_TOKEN }}@github.com/kokafanta24/k8s-projet.git deploy-repo
+          git clone https://${{ secrets.MY_DEPLOY_TOKEN }}@github.com/kokafanta24/mon-projet-deployment.git deploy-repo
 
           # 3. Remplacer la valeur de l'image par le SHA du commit
           cd deploy-repo
