@@ -1,3 +1,279 @@
+# name: CI/CD Pipeline
+
+# on:
+#   push:
+#     branches: [ master ]
+#   pull_request:
+#     branches: [ main, develop ]
+
+# env:
+#   PHP_VERSION: '8.2'
+#   MYSQL_DATABASE: bd_final
+#   MYSQL_ROOT_PASSWORD: root
+#   MYSQL_USER: appuser
+#   MYSQL_PASSWORD: apppassword
+#   APP_IMAGE: kokafanta24/app-web:latest
+
+# # ================================================================
+# # JOB 1 — SETUP : PHP + Composer
+# # ================================================================
+# jobs:
+#   setup:
+#     name: "Setup"
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+
+#       - name: Installer PHP
+#         uses: shivammathur/setup-php@v2
+#         with:
+#           php-version: '8.2'
+#           extensions: mbstring, pdo, pdo_mysql, gd, zip, curl
+#           ini-values: post_max_size=64M, upload_max_filesize=64M
+#           coverage: xdebug
+
+#       - name: Vérifier version PHP
+#         run: php --version
+
+#       - name: Cache Composer
+#         uses: actions/cache@v4
+#         with:
+#           path: ~/.composer/cache
+#           key: php-${{ env.PHP_VERSION }}-composer-${{ hashFiles('**/composer.lock') }}
+#           restore-keys: php-${{ env.PHP_VERSION }}-composer-
+
+#       - name: Installer dépendances Composer
+#         run: |
+#           if [ -f composer.json ]; then
+#             composer install --no-interaction --prefer-dist --no-progress
+#           else
+#             echo "Pas de composer.json — PHP pur, on continue"
+#           fi
+
+#       - name: Vérifier présence de Bootstrap
+#         run: |
+#           FILES=$(grep -rl "bootstrap" . --include="*.html" --include="*.php" 2>/dev/null || true)
+#           echo "Fichiers avec Bootstrap : $FILES"
+
+# # ================================================================
+# # JOB 2 — BUILD : Lint + Image Docker
+# # ================================================================
+#   build:
+#     name: "Build"
+#     runs-on: ubuntu-latest
+#     needs: setup
+#     steps:
+#       - uses: actions/checkout@v4
+
+#       # --- PHP ---
+#       - name: Installer PHP
+#         uses: shivammathur/setup-php@v2
+#         with:
+#           php-version: '8.2'
+
+#       - name: Lint PHP
+#         run: |
+#           echo "=== LINT PHP ==="
+#           find . -name "*.php" \
+#             -not -path "./vendor/*" \
+#             -not -path "./.git/*" \
+#             -exec php -l {} \;
+#           echo "PHP OK"
+
+#       # --- HTML ---
+#       - name: Setup Node
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: '20'
+
+#       - name: Lint HTML
+#         run: |
+#           npm install -g html-validate
+#           echo "=== LINT HTML ==="
+#           find . -name "*.html" -not -path "./vendor/*" \
+#             -exec html-validate {} \; || true
+#           echo "HTML OK"
+
+#       - name: Détecter classes Bootstrap invalides
+#         run: |
+#           echo "=== Bootstrap check ==="
+#           grep -rnE 'class="[^"]*(btn-primry|btn-secodary|col-md--|row-fluid|span[0-9]|text-centre)' \
+#             . --include="*.html" --include="*.php" \
+#             --exclude-dir=vendor --exclude-dir=.git || true
+#           echo "Bootstrap OK"
+
+#       # --- CSS ---
+#       - name: Lint CSS
+#         run: |
+#           npm install -g stylelint stylelint-config-standard
+#           echo '{ "extends": ["stylelint-config-standard"] }' > .stylelintrc.json
+#           echo "=== LINT CSS ==="
+#           find . -name "*.css" \
+#             -not -path "./vendor/*" \
+#             -not -name "bootstrap*" \
+#             -exec stylelint {} \; || true
+#           echo "CSS OK"
+
+#       # --- Docker ---
+#       - name: Login DockerHub
+#         uses: docker/login-action@v3
+#         with:
+#           username: ${{ secrets.DOCKER_USERNAME }}
+#           password: ${{ secrets.DOCKER_PASSWORD }}
+
+#       - name: Build et Push image Docker
+#         uses: docker/build-push-action@v5
+#         with:
+#           context: .
+#           push: true
+#           tags: ${{ env.APP_IMAGE }}
+
+# # ================================================================
+# # JOB 3 — TEST : DB + Web + PHPUnit
+# # ================================================================
+#   test:
+#     name: "Test"
+#     runs-on: ubuntu-latest
+#     needs: build
+
+#     services:
+#       mysql:
+#         image: mysql:8
+#         env:
+#           MYSQL_ROOT_PASSWORD: ${{ env.MYSQL_ROOT_PASSWORD }}
+#           MYSQL_DATABASE: ${{ env.MYSQL_DATABASE }}
+#           MYSQL_USER: ${{ env.MYSQL_USER }}
+#           MYSQL_PASSWORD: ${{ env.MYSQL_PASSWORD }}
+#         ports:
+#           - 3306:3306
+#         options: >-
+#           --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -proot"
+#           --health-interval=5s
+#           --health-timeout=3s
+#           --health-retries=15
+
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v4
+
+#       - name: Installer PHP
+#         uses: shivammathur/setup-php@v2
+#         with:
+#           php-version: '8.2'
+#           extensions: mbstring, pdo, pdo_mysql, gd, zip, curl
+#           coverage: xdebug
+
+#       - name: Cache Composer
+#         uses: actions/cache@v4
+#         with:
+#           path: ~/.composer/cache
+#           key: php-${{ env.PHP_VERSION }}-composer-${{ hashFiles('**/composer.lock') }}
+#           restore-keys: php-${{ env.PHP_VERSION }}-composer-
+
+#       - name: Installer dépendances Composer
+#         run: |
+#           if [ -f composer.json ]; then
+#             composer install --no-interaction --prefer-dist --no-progress
+#           else
+#             echo "Pas de composer.json — PHP pur, on continue"
+#           fi
+
+#       # --- Base de données ---
+#       - name: Importer la base de données
+#         run: |
+#           if [ ! -f bd.sql ]; then
+#             echo "Fichier bd.sql introuvable — skip."
+#           else
+#             mysql -h 127.0.0.1 \
+#               -u ${{ env.MYSQL_USER }} \
+#               -p${{ env.MYSQL_PASSWORD }} \
+#               ${{ env.MYSQL_DATABASE }} < bd.sql
+#             echo "Base importée avec succès."
+#           fi
+
+#       - name: Vérifier les tables créées
+#         run: |
+#           mysql -h 127.0.0.1 \
+#             -u ${{ env.MYSQL_USER }} \
+#             -p${{ env.MYSQL_PASSWORD }} \
+#             ${{ env.MYSQL_DATABASE }} \
+#             -e "SHOW TABLES;"
+
+#       # --- Conteneur applicatif ---
+#       - name: Créer le réseau Docker
+#         run: docker network create app-net
+
+#       - name: Démarrer le conteneur applicatif
+#         run: |
+#           docker run -d \
+#             --name app \
+#             --network app-net \
+#             --add-host=host.docker.internal:host-gateway \
+#             -p 8080:80 \
+#             -e DB_HOST=host.docker.internal \
+#             -e DB_NAME=${{ env.MYSQL_DATABASE }} \
+#             -e DB_USER=${{ env.MYSQL_USER }} \
+#             -e DB_PASS=${{ env.MYSQL_PASSWORD }} \
+#             ${{ env.APP_IMAGE }}
+
+#       # --- Health check ---
+#       - name: Attendre que l'application soit disponible
+#         run: |
+#           sleep 5
+#           for i in $(seq 1 20); do
+#             STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
+#               http://localhost:8080/index/login_page.php 2>/dev/null || echo "000")
+#             echo "  tentative $i — HTTP $STATUS"
+#             if [ "$STATUS" = "200" ]; then
+#               echo "Application disponible."
+#               break
+#             fi
+#             if [ $i -eq 20 ]; then
+#               echo "ERREUR : timeout, application non disponible."
+#               docker logs app
+#               exit 1
+#             fi
+#             sleep 3
+#           done
+
+#       - name: Test page de login (HTTP 200)
+#         run: |
+#           STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
+#             http://localhost:8080/index/login_page.php)
+#           echo "Code HTTP reçu : $STATUS"
+#           if [ "$STATUS" != "200" ]; then
+#             echo "ERREUR : la page n'a pas retourné 200."
+#             docker logs app
+#             exit 1
+#           fi
+
+#       - name: Debug structure fichiers conteneur
+#         run: docker exec app find /var/www/html -type f | head -50
+
+#       # --- PHPUnit ---
+#       - name: Run PHPUnit tests
+#         env:
+#           DB_HOST: 127.0.0.1
+#           DB_NAME: ${{ env.MYSQL_DATABASE }}
+#           DB_USER: ${{ env.MYSQL_USER }}
+#           DB_PASS: ${{ env.MYSQL_PASSWORD }}
+#         run: |
+#           vendor/bin/phpunit tests/Unit/DbHelperTest.php
+#           vendor/bin/phpunit tests/Unit/testlogin.php
+#           vendor/bin/phpunit tests/Integration/DbConnectionTest.php
+#           vendor/bin/phpunit tests/Functional/HttpTest.php
+#           vendor/bin/phpunit tests/Security/SecurityTest.php
+
+#       # --- Logs en cas d'échec ---
+#       - name: Afficher les logs si échec
+#         if: failure()
+#         run: docker logs app || true
+
+
+
+
+
+
 name: CI/CD Pipeline
 
 on:
@@ -122,11 +398,11 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build et Push image Docker
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ env.APP_IMAGE }}
+        run: |
+          TAG=${GITHUB_SHA::7}
+          docker build -t kokafanta24/app-web:${TAG} -t kokafanta24/app-web:latest .
+          docker push kokafanta24/app-web:${TAG}
+          docker push kokafanta24/app-web:latest
 
 # ================================================================
 # JOB 3 — TEST : DB + Web + PHPUnit
@@ -203,8 +479,9 @@ jobs:
       - name: Créer le réseau Docker
         run: docker network create app-net
 
-      - name: Démarrer le conteneur applicatif
+      - name: Démarrer le conteneur applicatif (avec la nouvelle image)
         run: |
+          TAG=${GITHUB_SHA::7}
           docker run -d \
             --name app \
             --network app-net \
@@ -214,7 +491,7 @@ jobs:
             -e DB_NAME=${{ env.MYSQL_DATABASE }} \
             -e DB_USER=${{ env.MYSQL_USER }} \
             -e DB_PASS=${{ env.MYSQL_PASSWORD }} \
-            ${{ env.APP_IMAGE }}
+            kokafanta24/app-web:${TAG}
 
       # --- Health check ---
       - name: Attendre que l'application soit disponible
@@ -247,9 +524,6 @@ jobs:
             exit 1
           fi
 
-      - name: Debug structure fichiers conteneur
-        run: docker exec app find /var/www/html -type f | head -50
-
       # --- PHPUnit ---
       - name: Run PHPUnit tests
         env:
@@ -264,7 +538,43 @@ jobs:
           vendor/bin/phpunit tests/Functional/HttpTest.php
           vendor/bin/phpunit tests/Security/SecurityTest.php
 
-      # --- Logs en cas d'échec ---
       - name: Afficher les logs si échec
         if: failure()
         run: docker logs app || true
+
+# ================================================================
+# JOB 4 — DEPLOY : Mise à jour du dépôt GitOps (ArgoCD)
+# ================================================================
+  deploy:
+    name: "Deploy via GitOps"
+    runs-on: ubuntu-latest
+    needs: test # Ne s'exécute QUE si le Job 3 (test) a réussi
+    if: github.event_name == 'push'
+    steps:
+      - name: Mettre à jour le dépôt GitOps
+        env:
+          GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}
+        run: |
+          # 1. Récupérer le tag unique du commit actuel
+          TAG=${GITHUB_SHA::7}
+          
+          # 2. Configurer l'identité Git du bot
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+
+          # 3. Cloner TON dépôt de déploiement
+          git clone https://x-access-token:${GITOPS_TOKEN}@github.com/koka55fanta/mon-projet-deployment.git
+          cd mon-projet-deployment/k8s-projet
+
+          # 4. Remplacer l'ancien tag par le nouveau dans le manifest
+          sed -i "s|kokafanta24/app-web:.*|kokafanta24/app-web:${TAG}|g" web-deployment.yaml
+
+          # 5. Committer et pousser seulement si le fichier a été modifié
+          git diff --quiet && echo "Rien à committer." && exit 0
+          git add web-deployment.yaml
+          git commit -m "chore: déploiement auto — image mise à jour vers ${TAG} [skip ci]"
+          git push
+
+
+
+

@@ -56,7 +56,7 @@ jobs:
           echo "Fichiers avec Bootstrap : $FILES"
 
 # ================================================================
-# JOB 2 — BUILD : Lint + Image Docker + GitOps
+# JOB 2 — BUILD : Lint + Image Docker
 # ================================================================
   build:
     name: "Build"
@@ -123,36 +123,10 @@ jobs:
 
       - name: Build et Push image Docker
         run: |
-          # Tag court = 7 premiers caractères du SHA du commit
           TAG=${GITHUB_SHA::7}
           docker build -t kokafanta24/app-web:${TAG} -t kokafanta24/app-web:latest .
           docker push kokafanta24/app-web:${TAG}
           docker push kokafanta24/app-web:latest
-          # Sauvegarder le tag pour l'étape suivante
-          echo "NEW_TAG=${TAG}" >> $GITHUB_ENV
-
-      # --- GitOps : mise à jour du dépôt de déploiement ---
-      - name: Mettre à jour le dépôt GitOps
-        if: github.event_name == 'push'
-        env:
-          GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}
-        run: |
-          # 1. Configurer l'identité Git du bot
-          git config --global user.name "GitHub Actions Bot"
-          git config --global user.email "actions@github.com"
-
-          # 2. Cloner le dépôt de déploiement
-          git clone https://x-access-token:${GITOPS_TOKEN}@github.com/koka55fanta/mon-projet-deployment.git
-          cd mon-projet-deployment/k8s-projet
-
-          # 3. Remplacer l'ancien tag par le nouveau dans le manifest
-          sed -i "s|kokafanta24/app-web:.*|kokafanta24/app-web:${NEW_TAG}|g" web-deployment.yaml
-
-          # 4. Committer et pousser seulement si quelque chose a changé
-          git diff --quiet && echo "Rien à committer." && exit 0
-          git add web-deployment.yaml
-          git commit -m "chore: déploiement auto — image mise à jour vers ${NEW_TAG} [skip ci]"
-          git push
 
 # ================================================================
 # JOB 3 — TEST : DB + Web + PHPUnit
@@ -229,8 +203,9 @@ jobs:
       - name: Créer le réseau Docker
         run: docker network create app-net
 
-      - name: Démarrer le conteneur applicatif
+      - name: Démarrer le conteneur applicatif (avec la nouvelle image)
         run: |
+          TAG=${GITHUB_SHA::7}
           docker run -d \
             --name app \
             --network app-net \
@@ -240,7 +215,7 @@ jobs:
             -e DB_NAME=${{ env.MYSQL_DATABASE }} \
             -e DB_USER=${{ env.MYSQL_USER }} \
             -e DB_PASS=${{ env.MYSQL_PASSWORD }} \
-            ${{ env.APP_IMAGE }}
+            kokafanta24/app-web:${TAG}
 
       # --- Health check ---
       - name: Attendre que l'application soit disponible
@@ -273,9 +248,6 @@ jobs:
             exit 1
           fi
 
-      - name: Debug structure fichiers conteneur
-        run: docker exec app find /var/www/html -type f | head -50
-
       # --- PHPUnit ---
       - name: Run PHPUnit tests
         env:
@@ -290,7 +262,39 @@ jobs:
           vendor/bin/phpunit tests/Functional/HttpTest.php
           vendor/bin/phpunit tests/Security/SecurityTest.php
 
-      # --- Logs en cas d'échec ---
       - name: Afficher les logs si échec
         if: failure()
         run: docker logs app || true
+
+# ================================================================
+# JOB 4 — DEPLOY : Mise à jour du dépôt GitOps (ArgoCD)
+# ================================================================
+  deploy:
+    name: "Deploy via GitOps"
+    runs-on: ubuntu-latest
+    needs: test # Ne s'exécute QUE si le Job 3 (test) a réussi
+    if: github.event_name == 'push'
+    steps:
+      - name: Mettre à jour le dépôt GitOps
+        env:
+          GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}
+        run: |
+          # 1. Récupérer le tag unique du commit actuel
+          TAG=${GITHUB_SHA::7}
+          
+          # 2. Configurer l'identité Git du bot
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+
+          # 3. Cloner TON dépôt de déploiement
+          git clone https://x-access-token:${GITOPS_TOKEN}@github.com/koka55fanta/mon-projet-deployment.git
+          cd mon-projet-deployment/k8s-projet
+
+          # 4. Remplacer l'ancien tag par le nouveau dans le manifest
+          sed -i "s|kokafanta24/app-web:.*|kokafanta24/app-web:${TAG}|g" web-deployment.yaml
+
+          # 5. Committer et pousser seulement si le fichier a été modifié
+          git diff --quiet && echo "Rien à committer." && exit 0
+          git add web-deployment.yaml
+          git commit -m "chore: déploiement auto — image mise à jour vers ${TAG} [skip ci]"
+          git push
