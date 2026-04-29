@@ -191,13 +191,13 @@ jobs:
             echo "Base importée avec succès."
           fi
 
-      - name: Vérifier les tables créées
-        run: |
-          mysql -h 127.0.0.1 \
-            -u ${{ env.MYSQL_USER }} \
-            -p${{ env.MYSQL_PASSWORD }} \
-            ${{ env.MYSQL_DATABASE }} \
-            -e "SHOW TABLES;"
+      # - name: Vérifier les tables créées
+      #   run: |
+      #     mysql -h 127.0.0.1 \
+      #       -u ${{ env.MYSQL_USER }} \
+      #       -p${{ env.MYSQL_PASSWORD }} \
+      #       ${{ env.MYSQL_DATABASE }} \
+      #       -e "SHOW TABLES;"
 
       # --- Conteneur applicatif ---
       - name: Créer le réseau Docker

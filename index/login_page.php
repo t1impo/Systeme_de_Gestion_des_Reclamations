@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <div class="container-fluid">
         <div class="row align-items-center" style="height: 100vh;">
               <div class="col-md-7 d-flex justify-content-center image-col">
-            <!-- <img src="../image/11235921_11104.jpg" class="img-fluid" alt="login"> -->
+            <img src="../image/11235921_11104.jpg" class="img-fluid" alt="login">
         </div>
         <div class="col-md-5 d-flex justify-content-center">
             <div style="width: 80%">
