@@ -191,6 +191,7 @@ jobs:
             echo "Base importée avec succès."
           fi
 
+          
       # - name: Vérifier les tables créées
       #   run: |
       #     mysql -h 127.0.0.1 \
