@@ -122,3 +122,11 @@ output "github_actions_role_arn" {
   value       = aws_iam_role.github_actions_deploy.arn
   description = "ARN du role assume par GitHub Actions via OIDC (a renseigner dans le workflow)"
 }
+
+# =============================================================================
+# Observabilite outputs (sous-etape 3.5)
+# =============================================================================
+output "dashboard_url" {
+  value       = "https://console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${aws_cloudwatch_dashboard.main.dashboard_name}"
+  description = "URL directe vers le dashboard CloudWatch consolide"
+}

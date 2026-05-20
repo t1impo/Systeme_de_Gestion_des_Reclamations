@@ -18,7 +18,7 @@ resource "aws_ecs_cluster" "main" {
 
   setting {
     name  = "containerInsights"
-    value = "disabled"
+    value = "enabled" # mode standard CloudWatch Container Insights (sous-etape 3.5.1)
   }
 
   tags = {
