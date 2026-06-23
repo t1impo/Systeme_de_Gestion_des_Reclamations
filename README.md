@@ -1,10 +1,5 @@
-# Rapport — Pipeline CI/CD du projet "Systeme de Gestion des Reclamations"
+# Pipeline CI/CD du projet "Systeme de Gestion des Reclamations"
 
-> Document pedagogique decrivant le pipeline CI/CD de bout en bout, et
-> detaillant chaque service/outil utilise. Destine a un etudiant qui n'a pas
-> participe a la construction du pipeline.
-
----
 
 ## Table des matieres
 
