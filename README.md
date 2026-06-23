@@ -1463,8 +1463,3 @@ terraform destroy -auto-approve
 Ne detruit pas : le bucket S3 du state, la table DynamoDB de lock, le depot
 ECR — ces ressources sont gerees hors Terraform et survivent (gratuites).
 
----
-
-*Document genere a partir des fichiers du depot
-`fork-Systeme-de-Gestion-des-Reclamations`. Toute modification du
-pipeline doit etre repercutee ici pour rester pedagogique.*
